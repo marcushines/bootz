@@ -43,6 +43,21 @@ service Bootstrap {
   // out-of-service state. The device should validate the server's identity
   // against the server_trust_cert it obtained in GetBootstrappingDataResponse.
   rpc ReportStatus(ReportStatusRequest) returns (EmptyResponse) {}
+
+  // BootstrapStream provides the streaming implementation of the Bootz
+  // service. This flow allows for both server and client validation via
+  // nonces and certficate validation. This allows the service to start with
+  // non owner signed certificates and build trust relationship.
+  // This bypasses the need to require the iDevID cert to be sent as part of
+  // the initial gRPC TLS handshake.
+  // The workflow should follow:
+  //    BootstrapStreamRequest.bootstrap_request
+  //    BootstrapStreamResponse.nonce
+  //    BootstrapStreamRequest.nonce_signed
+  //    BootstrapStreamResponse.boostrap_response
+  //
+  rpc BootstrapStream(stream BootstrapStreamRequest)
+      returns (stream BootstrapStreamResponse) {}
 }
 
 // Initial request from device to the bootz-server. Contains a detailed
@@ -54,10 +69,36 @@ message GetBootstrapDataRequest {
   // card is the chassis itself.
   ControlCardState control_card_state = 2;
   // A nonce that the bootstrap server should use when signing the response.
-  // Not settting this field indicates that the device is configured not to
+  // Not setting this field indicates that the device is configured not to
   // check for ownership voucher.
   string nonce = 1001;
+  
+  // IDevID certificate. Used by the bootz to validate the device is the
+  // expected device. The format is a base64 encoding of an x509 DER
+  // certificate.
+  bytes idevid_cert = 1003;
+
 }
+
+// BootstrapStreamRequest is used to both build send chassis information
+// as well as build a trust relationship if the iDevID cert is not used
+// during TLS setup.
+message BootstrapStreamRequest {
+  oneof type {
+    GetBootstrapDataRequest bootstrap_request = 1;
+    // Server provided nonce signed with the IAK from the device.
+    bytes nonce_signed = 2;
+  }
+}
+
+message BootstrapStreamResponse {
+  oneof type {
+    // Nonce to be signed with IAK from the device.
+    bytes nonce = 1;
+    GetBootstrapDataResponse bootstrap_response = 2;
+  }
+}
+
 
 // Structured message containing the chassis details, and listing its component
 // control-card modules.
