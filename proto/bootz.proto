@@ -73,11 +73,11 @@ message GetBootstrapDataRequest {
   // check for ownership voucher.
   string nonce = 1001;
   
-  // IDevID certificate. Used by the bootz to validate the device is the
+  // iDevID certificate. Used by the bootz to validate the device is the
   // expected device. The format is a base64 encoding of an x509 DER
-  // certificate.
+  // certificate. If device doesn't have an iDevID cert this will be left
+  // empty. 
   bytes idevid_cert = 1003;
-
 }
 
 // BootstrapStreamRequest is used to both build send chassis information
@@ -87,13 +87,19 @@ message BootstrapStreamRequest {
   oneof type {
     GetBootstrapDataRequest bootstrap_request = 1;
     // Server provided nonce signed with the IAK from the device.
+    // For non-iDevID systems the Nonce will be signed with:
+    //   TPM 1.2: EK
+    //   TPM 2.0: PPK
     bytes nonce_signed = 2;
   }
 }
 
 message BootstrapStreamResponse {
   oneof type {
-    // Nonce to be signed with IAK from the device.
+    // Nonce to be signed with IAK from the device for iDevID based systems.
+    // For non-iDevID systems the Nonce will be signed with:
+    //   TPM 1.2: EK
+    //   TPM 2.0: PPK
     bytes nonce = 1;
     GetBootstrapDataResponse bootstrap_response = 2;
   }
